@@ -1,0 +1,108 @@
+\begin{figure*}
+\setlength{\fboxsep}{0pt}%
+\setlength{\fboxrule}{0pt}%
+\begin{center}
+\begin{boxedverbatim}
+\documentclass[times]{asjcauth}
+%\documentclass[times,doublespace]{asjcauth}%For paper submission
+
+\begin{document}
+
+\runninghead{<Initials and Surnames>: <Short title>}
+
+%\categorytitle{Brief Paper}
+
+\title{<ALL CAPITALS>}
+
+\author{<An Author, Someone Else, and Perhaps Another>}
+
+\address{<The author(s) is (are) with <author's address(es)>}
+
+\received{<Article history>}
+
+%\acks{<Acknowledgements as appropriate>}
+
+\begin{abstract}
+<Text>
+\end{abstract}
+
+\keywords{<Key words separated by commas>}
+
+\maketitle
+
+\section{INTRODUCTION}
+.
+.
+.
+\end{boxedverbatim}
+\end{center}
+\caption{Example header text.\label{F1}}
+\vspace{12pt}
+\end{figure*}
+\efloatseparator
+ 
+\begin{figure}
+\centering
+\includegraphics[width=.7\columnwidth]{Robot_kinematics.eps}
+\caption{Robot's Kinematics}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering
+\includegraphics[width=.7\columnwidth]{mobileRobot.jpg}
+\caption{Mobile Robot}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering
+\includegraphics[width=.7\columnwidth]{ControlFlow.pdf}
+\caption{Overall Control Scheme}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure}
+\centering
+\includegraphics[width=.7\columnwidth]{testingEnvironment.jpg}
+\caption{Testing Environment}
+\end{figure}
+\efloatseparator
+ 
+\begin{figure*}
+\setlength{\fboxsep}{0pt}%
+\setlength{\fboxrule}{0pt}%
+\begin{center}
+\begin{boxedverbatim}
+\documentclass[editorial,times]{asjcauth}
+
+\begin{document}
+
+\runninghead{Editorial}
+
+\title{<ALL CAPITALS>}
+
+\maketitle
+
+<Text>
+.
+.
+.
+\begin{flushright}
+\textbf{Guest Editor(s)}\\[6pt]
+\textbf{<Editor name>}\\
+<Address>
+.
+.
+.
+\end{flushright}
+
+\noindent <editor biography details>
+\end{document}
+\end{boxedverbatim}
+\end{center}
+\caption{Example editorial layout.\label{Fed}}
+%\vspace{12pt}
+\end{figure*}
+\efloatseparator
+ 
