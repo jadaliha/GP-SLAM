@@ -104,7 +104,7 @@ for t=1:nt
        AgumentedData(t).possible_q.prior_qt{i} = 1/sizeOmg;
     end
     AgumentedData(t).possible_q.support_qt{1} = IX_true(1);
-    AgumentedData(t).possible_q.prior_qt = 1;
+    %AgumentedData(t).possible_q.prior_qt = 1;
     AgumentedData(t).possible_q.N_possible_qt = sizeOmg; %??
     AgumentedData(t).possible_q.measuredposition = IX_noise(1);
 end
