@@ -22,7 +22,14 @@ option = globaloption;
 
 %%% Case 2: Load data
 importxls                                                                   % Load the excel sheet
-location = [locationX, locationY];                                          % Assign the Location
+%load data %for loading data quickly
+noiseMagnitude=30;
+location = [locationX, locationY];    % Assign the Location
+dataSize=size(locationX,1);
+noiseAdded=noiseMagnitude*rand(dataSize,1);
+noiseAdded=noiseAdded-mean(noiseAdded);
+location_noise=[locationX+noiseAdded,...
+                locationY+noiseAdded];
 features = AFFT1;                                                           % select the one or more features
 %---- we normalize features here
 features = features - ones(size(features,1),1)*mean(features,1);            % remove mean average
@@ -36,7 +43,7 @@ for index = 1:nf
     f = features(:,index);
     p0 = [var(f) 1 1 0.5]'; % sig_f^2, sig_x sig_y sigma2w                  % Initial guess of hyper-parameters
     [hyper_p(:,index), ~] = HyperParameter(f,location(:,1:2), p0);          % extract hyper parameters for each layer sepratly
-    % hyper_p(:,index) = [1;0.5;0.5];                                           % You may overwrite the hyper parameter values manually
+    %hyper_p(:,index) = [1;0.5;0.5];                                           % You may overwrite the hyper parameter values manually
     str = sprintf('hyper-parameters # %d: \t (sig_f^2: %0.2f, \t sig_x: %0.2f, \t sig_y: %0.2f, \t sig_w^2: %0.2f)',index,hyper_p(1,index),hyper_p(2,index),hyper_p(3,index),hyper_p(4,index));
     disp(str)
 end
@@ -47,6 +54,8 @@ index = 1; % this part should be changed for multi dimensional cases
 option.x_scale = hyper_p(2,index);                                          % scale x coordinate with the x direction bandwidth
 option.y_scale = hyper_p(3,index);
 location       = [locationX/option.x_scale, locationY/option.y_scale];      % rescale cartesian coordinates
+location_noise = [location_noise(:,1)/option.x_scale,...
+                  location_noise(:,2)/option.y_scale];
 
 h = 1; % discritization factor
 option.alpha = h^(-2) * 2; % $\ell = \frac{1}{h} \sqrt{\frac{\alpha}{2}}$
@@ -62,17 +71,42 @@ option.grids = [reshape(tmp_S1,[],1) reshape(tmp_S2,[],1)];
 nx = size(option.X_mesh,2) ;                                                % number of X grid
 ny = size(option.Y_mesh,2) ;                                                % number of Y grid
 nt = size(option.T_mesh,2) ;                                                % number of time steps
+
+%regression loop:
 for t=1:nt
+%     AgumentedData(t).y = f(t);
+%     dist_grid_from_continous = ...
+%         sqrt((option.grids(:,1) - location(t,1)).^2 + ...
+%         (option.grids(:,2) - location(t,2)).^2);
+%     [IC,IX] = sort(dist_grid_from_continous);
+%     AgumentedData(t).possible_q.true_q = IX(1);
+%     AgumentedData(t).possible_q.support_qt{1} = IX(1);
+%     AgumentedData(t).possible_q.prior_qt = 1;
+%     AgumentedData(t).possible_q.N_possible_qt = 1;
+%     AgumentedData(t).possible_q.measuredposition = IX(1);
+    
     AgumentedData(t).y = f(t);
-    dist_grid_from_continous = ...
+    
+    dist_grid_from_continous_true= ...
         sqrt((option.grids(:,1) - location(t,1)).^2 + ...
         (option.grids(:,2) - location(t,2)).^2);
-    [IC,IX] = sort(dist_grid_from_continous);
-    AgumentedData(t).possible_q.true_q = IX(1);
-    AgumentedData(t).possible_q.support_qt{1} = IX(1);
+    [IC_true,IX_true] = sort(dist_grid_from_continous_true);
+    
+    dist_grid_from_continous_noise = ...
+        sqrt((option.grids(:,1) - location_noise(t,1)).^2 + ...
+        (option.grids(:,2) - location_noise(t,2)).^2);
+    [IC_noise,IX_noise] = sort(dist_grid_from_continous_noise);
+    omegaSet=omegaMaker(option.grids,IX_true,IX_noise,nx,ny);
+    sizeOmg=size(omegaSet,1);
+    AgumentedData(t).possible_q.true_q = IX_true(1);
+    for i=1:sizeOmg
+       AgumentedData(t).possible_q.support_qt{i}=omegaSet(i);
+       AgumentedData(t).possible_q.prior_qt{i} = 1/sizeOmg;
+    end
+    AgumentedData(t).possible_q.support_qt{1} = IX_true(1);
     AgumentedData(t).possible_q.prior_qt = 1;
-    AgumentedData(t).possible_q.N_possible_qt = 1;
-    AgumentedData(t).possible_q.measuredposition = IX(1);
+    AgumentedData(t).possible_q.N_possible_qt = sizeOmg; %??
+    AgumentedData(t).possible_q.measuredposition = IX_noise(1);
 end
 ntheta= size(option.hyperparameters_possibilities,1);                       % number of possibilities for $theta$
 n = size(option.grids,1);                                                   % number of spatial sites
@@ -100,7 +134,7 @@ mux_ = mux;
 Sigmax_ = Sigmax;
 
 for t=option.T_mesh 
-    t
+    t %#ok<NOPTS>
     xtilda = reshape(option.grids(...
         AgumentedData(1,t).possible_q.measuredposition,:)',[],1);
     ztilda = AgumentedData(t).y;
@@ -157,7 +191,7 @@ for t=option.T_mesh
     
     % For the toures correction on the sampling positions measured  close
     % to the borders
-    mux = zeros(2*N,1);
+    mux = zeros(2*N,1); %#ok<NASGU>
     xxx = zeros(2*N,numberofpossibleqt);
     for indj = 1:N
         xx = option.grids(qt(indj,:),:);

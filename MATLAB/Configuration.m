@@ -26,8 +26,11 @@ option.margin = 10;
 option.X_mesh = (-Xmax:option.finegridsize:Xmax);                           % X axes cordinate
 option.Y_mesh = (-Ymax:option.finegridsize:Ymax);                           % Y axes cordinate
 option.T_mesh = (1:1:Tmax); % Time   cordinate
-[tmp_S1 tmp_S2] = meshgrid(option.X_mesh,option.Y_mesh);
+[tmp_S1, tmp_S2] = meshgrid(option.X_mesh,option.Y_mesh);
 option.grids = [reshape(tmp_S1,[],1) reshape(tmp_S2,[],1)];
+option.grids_size=size(option.grids,1);
+option.sizeY=size(option.Y_mesh,2);
+
 
 
 %--------Hyperparameters---------------------------------------------------
