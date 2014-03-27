@@ -11,7 +11,7 @@
 
 %% Import the data
 %[~, ~, raw] = xlsread('H:\Dropbox\GMRF-SLAM\Code\slam\FeaturesAndLocations.xlsx','Sheet1','A2:AL464');
-[~, ~, raw] = xlsread('C:\Users\dohuan.ME197\Documents\GitHub\GP-SLAM\MATLAB\FeaturesAndLocations.xlsx','Sheet1','A2:AL464');
+[~, ~, raw] = xlsread('C:\Users\dohuan\Documents\GitHub\GP-SLAM\MATLAB\FeaturesAndLocations.xlsx','Sheet1','A2:AL464');
 
 %% Create output variable
 data = reshape([raw{:}],size(raw));

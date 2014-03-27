@@ -64,6 +64,7 @@ option.vehicle.InputVariance = 1;       %Sigma(ut)
 option.vehicle.ModelUncertanity = 0.25;    %Sigma(wt)
 option.vehicle.OutputMatrix = 1;        %Lt
 option.vehicle.ObservationNoise = 9.1;    %Sigma(et)
+
 %--------Sensor network----------------------------------------------------
 option.agentnumbers = 1;                %N
 option.agentmobilityconstrain = 0;      %In the case that there was some mobility constrain

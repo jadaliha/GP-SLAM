@@ -23,14 +23,19 @@ option = globaloption;
 %%% Case 2: Load data
 importxls                                                                   % Load the excel sheet
 %load data %for loading data quickly
-noiseMagnitude=30;
-location = [locationX, locationY];    % Assign the Location
-dataSize=size(locationX,1);
+noiseMagnitude=60;
+restricted=350;
+location = [downSampling(locationX(1:restricted),10),...
+    downSampling(locationY(1:restricted),10)];    % Assign the Location
+dataSize=size(location,1);
 noiseAdded=noiseMagnitude*rand(dataSize,1);
+%noiseAddedY=noiseMagnitude*rand(dataSize,1);
 noiseAdded=noiseAdded-mean(noiseAdded);
-location_noise=[locationX+noiseAdded,...
-                locationY+noiseAdded];
-features = AFFT1;                                                           % select the one or more features
+%noiseAddedY=noiseAddedY-mean(noiseAddedY);
+noiseStd=sqrt(var(noiseAdded));
+location_noise=[downSampling(locationX(1:restricted),10)+noiseAdded,...
+                downSampling(locationY(1:restricted),10)+noiseAdded];
+features = downSampling(AFFT1(1:restricted),10);                                                           % select the one or more features
 %---- we normalize features here
 features = features - ones(size(features,1),1)*mean(features,1);            % remove mean average
 cov_features = cov(features);
@@ -53,7 +58,7 @@ end
 index = 1; % this part should be changed for multi dimensional cases
 option.x_scale = hyper_p(2,index);                                          % scale x coordinate with the x direction bandwidth
 option.y_scale = hyper_p(3,index);
-location       = [locationX/option.x_scale, locationY/option.y_scale];      % rescale cartesian coordinates
+location       = [location(:,1)/option.x_scale, location(:,2)/option.y_scale];      % rescale cartesian coordinates
 location_noise = [location_noise(:,1)/option.x_scale,...
                   location_noise(:,2)/option.y_scale];
 
@@ -71,7 +76,9 @@ option.grids = [reshape(tmp_S1,[],1) reshape(tmp_S2,[],1)];
 nx = size(option.X_mesh,2) ;                                                % number of X grid
 ny = size(option.Y_mesh,2) ;                                                % number of Y grid
 nt = size(option.T_mesh,2) ;                                                % number of time steps
-
+recOmg=cell(nt,1);
+omegaSetSet=cell(nt,1);
+%fields=cell(nt,1);
 %regression loop:
 for t=1:nt
 %     AgumentedData(t).y = f(t);
@@ -96,15 +103,16 @@ for t=1:nt
         sqrt((option.grids(:,1) - location_noise(t,1)).^2 + ...
         (option.grids(:,2) - location_noise(t,2)).^2);
     [IC_noise,IX_noise] = sort(dist_grid_from_continous_noise);
-    omegaSet=omegaMaker(option.grids,IX_true,IX_noise,nx,ny);
+    [omegaSet,recOmg{t}]=omegaMaker(option.grids,IX_true,IX_noise,nx,ny);
+    omegaSetSet{t}=omegaSet;
     sizeOmg=size(omegaSet,1);
     AgumentedData(t).possible_q.true_q = IX_true(1);
-    for i=1:sizeOmg
-       AgumentedData(t).possible_q.support_qt{i}=omegaSet(i);
-       AgumentedData(t).possible_q.prior_qt{i} = 1/sizeOmg;
-    end
-    %AgumentedData(t).possible_q.support_qt{1} = IX_true(1);
-    %AgumentedData(t).possible_q.prior_qt = 1;
+%     for i=1:sizeOmg
+%        AgumentedData(t).possible_q.support_qt{i}=omegaSet(i);
+%        AgumentedData(t).possible_q.prior_qt{i} = 1/sizeOmg;
+%     end
+    AgumentedData(t).possible_q.support_qt{1} = omegaSet;
+    AgumentedData(t).possible_q.prior_qt = 1/sizeOmg*ones(sizeOmg,1);
     AgumentedData(t).possible_q.N_possible_qt = sizeOmg; %??
     AgumentedData(t).possible_q.measuredposition = IX_noise(1);
 end
@@ -113,7 +121,10 @@ n = size(option.grids,1);                                                   % nu
 N = option.agentnumbers;
 x_width = option.X_mesh(end) - option.X_mesh(1) + option.finegridsize;
 y_width = option.Y_mesh(end) - option.Y_mesh(1) + option.finegridsize;
-phi = 0 ; option.vehicle.ModelUncertanity = 4;
+phi = 0 ; 
+% update error parameters here
+option.vehicle.ModelUncertanity = 4;
+option.vehicle.ObservationNoise = noiseStd;
 %----- Construct precision matrix Qz---------------------------------------
 muz_theta = zeros(n,ntheta);
 Sigmaz_theta = zeros(n^2,ntheta);
@@ -122,8 +133,6 @@ for indtheta=1:ntheta
         ,option.hyperparameters_possibilities(indtheta,2),nx,ny);
     Sigmaz_theta(:,indtheta) = reshape(tmp1^(-1),[],1);
 end 
-
-
 
 f_theta = log(option.hyperparameters_possibilities(:,end));
 itmp = (1:2*N);
@@ -135,6 +144,7 @@ Sigmax_ = Sigmax;
 
 for t=option.T_mesh 
     t %#ok<NOPTS>
+    sizeOmg
     xtilda = reshape(option.grids(...
         AgumentedData(1,t).possible_q.measuredposition,:)',[],1);
     ztilda = AgumentedData(t).y;
@@ -186,13 +196,10 @@ for t=option.T_mesh
     f_theta = log(pi_theta);
     pi_q = sum(pi_qtandtheta,2);
     
-    
-    
-    
     % For the toures correction on the sampling positions measured  close
     % to the borders
     mux = zeros(2*N,1); %#ok<NASGU>
-    xxx = zeros(2*N,numberofpossibleqt);
+    xxx = zeros(2*N,numberofpossibleqt); %xxx: position of each qt
     for indj = 1:N
         xx = option.grids(qt(indj,:),:);
 %         % uncomment for tourse
@@ -241,7 +248,7 @@ for t=option.T_mesh
 
             Sigmaz_theta_temp = Sigmaz_theta_temp + ...
                 (Sigmaz_qandtheta + VectorSquare(muz_qandtheta))*...
-                pi_qtGtheta(indq) ;
+                pi_qtGtheta(indq) ;      
 
         end
         muz_theta(:,indtheta)    = muz_theta_temp;
@@ -255,7 +262,7 @@ for t=option.T_mesh
         - posterior(t).muz.* posterior(t).muz;
     posterior(t).mux = mux;
     posterior(t).Sigmax = Sigmax;
-
+    
     % predict next sampling position
     u = velocity(t);
     phi = phi + turnrate(t);
@@ -270,9 +277,44 @@ end
 % 
 toc
 
-for i=1:463
+% for i=1:463
+%     DT_x(i) = posterior(i).mux(1);
+%     DT_y(i) = posterior(i).mux(2);
+% end
+% for i=1:restricted
+%     DT_x(i) = posterior(i).mux(1);
+%     DT_y(i) = posterior(i).mux(2);
+% end
+
+for i=1:restricted/10
     DT_x(i) = posterior(i).mux(1);
     DT_y(i) = posterior(i).mux(2);
 end
-plot(DT_x,DT_y)
+plot(DT_x,DT_y);
+hold on;
+plot(location_noise(:,1),location_noise(:,2),'r*');
+plot(location(:,1),location(:,2),'g');
+% for i=1:nt
+%    rectangle('Position',[recOmg{i}.point(1) (recOmg{i}.point(2)-recOmg{i}.height)...
+%        recOmg{i}.width recOmg{i}.height]); 
+% end
+% for i=1:nt
+%     plot(option.grids(omegaSetSet{i},1),option.grids(omegaSetSet{i},2),'r*');
+% end
+hold off;
+s=input('output field animated: y or n?');
+if (s=='y')
+    writeObj=VideoWriter('test2.avi');
+    writeObj.FrameRate=5;
+    open(writeObj);
+    nFrames = nt;
+    mov(1:nFrames) = struct('cdata',[], 'colormap',[]);
+    for i=1:nt
+    C=reshape(posterior(i).muz,41,61);
+    surf(C);
+    mov(i)=getframe(gcf);
+    writeVideo(writeObj,mov(i));
+    end
+    close(writeObj);
+end
 

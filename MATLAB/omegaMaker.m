@@ -1,5 +1,5 @@
 
-function [omega]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
+function [omega,rec]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
     %persistent pointIX size_x size_y box gridIX
     pointIX.IX=sort([IX_true(1);IX_noise(1)]);
     gridIX=1:1:size(grids,1);
@@ -18,10 +18,10 @@ function [omega]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
         if (size_y==0)
             box.point(1)=pointIX.point{1}(1)-1;
             box.point(2)=pointIX.point{1}(2)-1;
-            if box.point(1)<0 
+            if box.point(1)<1 
                 box.point(1)=pointIX.point{1}(1);
             end
-            if box.point(2)<0 
+            if box.point(2)<1 
                 box.point(2)=pointIX.point{1}(2);
             end
             box.height=2;
@@ -35,8 +35,8 @@ function [omega]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
         else
             box.point(1)=round(min(pointIX.point{1}(1),pointIX.point{2}(1))-size_y/2);
             box.point(2)=min(pointIX.point{1}(2),pointIX.point{2}(2));
-            if box.point(1)<0
-               box.point(1)=0; 
+            if box.point(1)<1
+               box.point(1)=1; 
             end
             box.height=size_y;
             box.width=size_y;
@@ -50,8 +50,8 @@ function [omega]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
     else if size_y==0
             box.point(1)=min(pointIX.point{1}(1),pointIX.point{2}(1));
             box.point(2)=round(min(pointIX.point{1}(2),pointIX.point{2}(2))-size_x/2);
-            if box.point(2)<0
-               box.point(2)=0; 
+            if box.point(2)<1
+               box.point(2)=1; 
             end
             box.height=size_x;
             box.width=size_x;
@@ -62,10 +62,22 @@ function [omega]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
                 box.height=sizeY-box.point(2);
             end
         else
-            box.point(1)=min(pointIX.point{1}(1),pointIX.point{2}(1));
-            box.point(2)=min(pointIX.point{1}(2),pointIX.point{2}(2));
-            box.height=size_y;
-            box.width=size_x;
+            box.point(1)=min(pointIX.point{1}(1),pointIX.point{2}(1))-1;
+            box.point(2)=min(pointIX.point{1}(2),pointIX.point{2}(2))-1;
+            box.height=size_y+2;
+            box.width=size_x+2;
+            if box.point(1)<1
+               box.point(1)=1; 
+            end
+            if box.point(2)<1
+               box.point(2)=1; 
+            end
+            if (box.point(1)+box.width)>sizeX
+                box.width=sizeX-box.point(1);
+            end
+            if (box.point(2)+box.height)>sizeY
+                box.height=sizeY-box.point(2);
+            end
         end
     end
     assignin('base','pointIX',pointIX);
@@ -73,13 +85,13 @@ function [omega]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
     assignin('base','box',box);
     assignin('base','size_x',size_x);
     assignin('base','size_y',size_y);
-
-%     size(gridIX)
-%     box.point
-%     box.height
-%     box.width
     omega=gridIX(box.point(2):box.point(2)+box.height,...
                box.point(1):box.point(1)+box.width);
     omega=reshape(omega,[],1);
+    rec.point=grids(gridIX(box.point(2),box.point(1)),:);
+    heightTmp=grids(gridIX(box.point(2)+box.height),:)-grids(gridIX(box.point(2)),:);
+    widthTmp=grids(gridIX(box.point(1)+box.width),:)-grids(gridIX(box.point(1)),:);
+    rec.height=abs(nonzeros(heightTmp));
+    rec.width=abs(nonzeros(widthTmp));
     %clear pointIX size_x size_y box gridIX
 end
