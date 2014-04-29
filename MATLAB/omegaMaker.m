@@ -1,6 +1,7 @@
 
-function [omega,rec]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
+function [omega,rec,true_point]=omegaMaker(grids,IX_true,IX_noise,sizeX,sizeY)
     %persistent pointIX size_x size_y box gridIX
+    true_point=grids(IX_true(1),:);
     pointIX.IX=sort([IX_true(1);IX_noise(1)]);
     gridIX=1:1:size(grids,1);
     gridIX=reshape(gridIX,sizeY,[]);

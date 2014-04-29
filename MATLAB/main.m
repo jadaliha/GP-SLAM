@@ -5,7 +5,7 @@
 % Authour : Mahdi Jadaliha
 % e-mail  : jadaliha@gmail.com
 % =========================================================================
-tic  
+%tic  
 close all
 clear all
 clc
@@ -22,20 +22,32 @@ option = globaloption;
 
 %%% Case 2: Load data
 importxls                                                                   % Load the excel sheet
+load polishedFeature T
+%load unFilteredFeature feature
 %load data %for loading data quickly
-noiseMagnitude=60;
-restricted=350;
-location = [downSampling(locationX(1:restricted),10),...
-    downSampling(locationY(1:restricted),10)];    % Assign the Location
+%noiseMagnitude=30;
+noiseStd=60;
+restricted=400;
+scaleRatio=10;  
+location = [downSampling(locationX(1:restricted),scaleRatio),...
+    downSampling(locationY(1:restricted),scaleRatio)];    % Assign the Location
 dataSize=size(location,1);
-noiseAdded=noiseMagnitude*rand(dataSize,1);
-%noiseAddedY=noiseMagnitude*rand(dataSize,1);
-noiseAdded=noiseAdded-mean(noiseAdded);
-%noiseAddedY=noiseAddedY-mean(noiseAddedY);
-noiseStd=sqrt(var(noiseAdded));
-location_noise=[downSampling(locationX(1:restricted),10)+noiseAdded,...
-                downSampling(locationY(1:restricted),10)+noiseAdded];
-features = downSampling(AFFT1(1:restricted),10);                                                           % select the one or more features
+% noiseAdded=ones(dataSize,1)*mean(mean(location))+noiseStd*randn(dataSize,1);
+noiseAddedX=noiseStd*randn(dataSize,1);
+noiseAddedY=noiseStd*randn(dataSize,1);
+noiseAddedX=noiseAddedX-mean(noiseAddedX);
+noiseAddedY=noiseAddedY-mean(noiseAddedY);
+
+%noiseStd=sqrt(var(noiseAdded));
+% location_noise=[downSampling(locationX(1:restricted),scaleRatio)+noiseAdded,...
+%                 downSampling(locationY(1:restricted),scaleRatio)+noiseAdded];
+location_noise=[downSampling(locationX(1:restricted),scaleRatio)+noiseAddedX,...
+                downSampling(locationY(1:restricted),scaleRatio)+noiseAddedY];
+%location_noise(3:end,:)=location_noise(3:end,:)+[noiseAddedX(3:end),noiseAddedY(3:end)];
+
+%features = downSampling(HIST10(1:restricted),scaleRatio);                                                           % select the one or more features
+%features = downSampling(feature(1:restricted),scaleRatio); 
+features = downSampling(T(1:restricted),scaleRatio); 
 %---- we normalize features here
 features = features - ones(size(features,1),1)*mean(features,1);            % remove mean average
 cov_features = cov(features);
@@ -46,9 +58,10 @@ nf = size(features,2);
 hyper_p = zeros(4,nf);
 for index = 1:nf
     f = features(:,index);
-    p0 = [var(f) 1 1 0.5]'; % sig_f^2, sig_x sig_y sigma2w                  % Initial guess of hyper-parameters
-    [hyper_p(:,index), ~] = HyperParameter(f,location(:,1:2), p0);          % extract hyper parameters for each layer sepratly
-    %hyper_p(:,index) = [1;0.5;0.5];                                           % You may overwrite the hyper parameter values manually
+    p0 = [var(f) 3 3 0.5]'; % sig_f^2, sig_x sig_y sigma2w                  % Initial guess of hyper-parameters
+    %p0 = [1 350 300 0.3]'; % sig_f^2, sig_x sig_y sigma2w                  % Initial guess of hyper-parameters
+   % [hyper_p(:,index), ~] = HyperParameter(f,location(:,1:2), p0);          % extract hyper parameters for each layer sepratly
+    hyper_p(:,index) = [0.69;5;5;0.22];    %[0.69;5;5;0.22] [1.7;5;5;0.22]
     str = sprintf('hyper-parameters # %d: \t (sig_f^2: %0.2f, \t sig_x: %0.2f, \t sig_y: %0.2f, \t sig_w^2: %0.2f)',index,hyper_p(1,index),hyper_p(2,index),hyper_p(3,index),hyper_p(4,index));
     disp(str)
 end
@@ -63,7 +76,9 @@ location_noise = [location_noise(:,1)/option.x_scale,...
                   location_noise(:,2)/option.y_scale];
 
 h = 1; % discritization factor
-option.alpha = h^(-2) * 2; % $\ell = \frac{1}{h} \sqrt{\frac{\alpha}{2}}$
+l=5.5; % $\ell: bandwidth$
+%option.alpha = h^(-2) * 2; % $\ell = \frac{1}{h} \sqrt{\frac{\alpha}{2}}$
+option.alpha = l^(-2) * 2;
 option.kappa = (hyper_p(1,index)* 4 * pi * option.alpha)^-1;  % $\sigma_f^2 = \frac{1}{4 \pi \alpha \kappa}$
 % because of normalization bandwith = 1 here
 option.hyperparameters_possibilities = ...
@@ -78,6 +93,7 @@ ny = size(option.Y_mesh,2) ;                                                % nu
 nt = size(option.T_mesh,2) ;                                                % number of time steps
 recOmg=cell(nt,1);
 omegaSetSet=cell(nt,1);
+truePosGrid=zeros(nt,2);
 %fields=cell(nt,1);
 %regression loop:
 for t=1:nt
@@ -103,7 +119,8 @@ for t=1:nt
         sqrt((option.grids(:,1) - location_noise(t,1)).^2 + ...
         (option.grids(:,2) - location_noise(t,2)).^2);
     [IC_noise,IX_noise] = sort(dist_grid_from_continous_noise);
-    [omegaSet,recOmg{t}]=omegaMaker(option.grids,IX_true,IX_noise,nx,ny);
+    %[omegaSet,recOmg{t},truePosGrid(t,:)]=omegaMaker(option.grids,IX_true,IX_noise,nx,ny);
+    [omegaSet,truePosGrid(t,:)]=omegaMaker2(option.grids,IX_true,IX_noise,noiseStd);
     omegaSetSet{t}=omegaSet;
     sizeOmg=size(omegaSet,1);
     AgumentedData(t).possible_q.true_q = IX_true(1);
@@ -122,9 +139,10 @@ N = option.agentnumbers;
 x_width = option.X_mesh(end) - option.X_mesh(1) + option.finegridsize;
 y_width = option.Y_mesh(end) - option.Y_mesh(1) + option.finegridsize;
 phi = 0 ; 
-% update error parameters here
-option.vehicle.ModelUncertanity = 4;
+% update noise variance parameters here
+option.vehicle.ModelUncertanity = 5;  %previous: 4
 option.vehicle.ObservationNoise = noiseStd;
+option.s_e2 = 0.01;                      %Sigma(epsilon^2)0.01
 %----- Construct precision matrix Qz---------------------------------------
 muz_theta = zeros(n,ntheta);
 Sigmaz_theta = zeros(n^2,ntheta);
@@ -138,13 +156,14 @@ f_theta = log(option.hyperparameters_possibilities(:,end));
 itmp = (1:2*N);
 jtmp = kron((1:N)',[1;1]);
 mux = zeros(2*N,1);
-Sigmax = eye(2*N)*1000;
+Sigmax = eye(2*N)*1000;  %1000??
 mux_ = mux;
 Sigmax_ = Sigmax;
 
 for t=option.T_mesh 
     t %#ok<NOPTS>
-    sizeOmg
+    tic
+    size(omegaSetSet{t},1)
     xtilda = reshape(option.grids(...
         AgumentedData(1,t).possible_q.measuredposition,:)',[],1);
     ztilda = AgumentedData(t).y;
@@ -184,10 +203,13 @@ for t=option.T_mesh
 
         end
     end
+    B=f_qtandtheta;
     tmp_c = log(sum(sum(exp(f_qtandtheta))));                               % Here we find normalization factor $tmp_c$
-%     if (abs(tmp_c)>100)
-%         pause
-%     end
+    %tmp_c
+    if (abs(tmp_c)>1000)
+        disp('PAUSE!!');
+        dbstop;
+    end
     f_qtandtheta = f_qtandtheta - tmp_c;                                    % After this line $f_qtandtheta$ is normalized, 
     pi_qtandtheta = exp(f_qtandtheta);                                      % $sum(pi_qtandtheta) = 1$.
     
@@ -238,10 +260,10 @@ for t=option.T_mesh
  
             muz_qandtheta    = ...
                 muztheta + tmp1 * ...
-                InvSigmaztildatheta * (ztilda - muztildatheta);
+                InvSigmaztildatheta * (ztilda - muztildatheta); %GP
             Sigmaz_qandtheta = ...
                 reshape(Sigmaztheta - tmp1 * ...
-                InvSigmaztildatheta * tmp1',[],1);
+                InvSigmaztildatheta * tmp1',[],1);  %GP
             
             muz_theta_temp = muz_theta_temp + ...
                 muz_qandtheta * pi_qtGtheta(indq);
@@ -251,9 +273,9 @@ for t=option.T_mesh
                 pi_qtGtheta(indq) ;      
 
         end
-        muz_theta(:,indtheta)    = muz_theta_temp;
+        muz_theta(:,indtheta)    = muz_theta_temp; %(23)
         Sigmaz_theta(:,indtheta) = ...
-            Sigmaz_theta_temp - VectorSquare(muz_theta_temp);
+            Sigmaz_theta_temp - VectorSquare(muz_theta_temp); %(24)
     end
     
     posterior(t).muz = muz_theta * pi_theta';
@@ -271,12 +293,13 @@ for t=option.T_mesh
     mux_    = mux + F * u;
     Sigma_w = eye(2*size(qt,1))* option.vehicle.ModelUncertanity;
     Sigmax_ = Sigmax + Sigma_w;  
-    
+    toc
     
 end
 % 
-toc
-
+time=toc;
+s=sprintf('run time: %f minutes',time/60);
+disp(s);
 % for i=1:463
 %     DT_x(i) = posterior(i).mux(1);
 %     DT_y(i) = posterior(i).mux(2);
@@ -286,35 +309,56 @@ toc
 %     DT_y(i) = posterior(i).mux(2);
 % end
 
-for i=1:restricted/10
+for i=1:restricted/scaleRatio
     DT_x(i) = posterior(i).mux(1);
     DT_y(i) = posterior(i).mux(2);
 end
-plot(DT_x,DT_y);
+figure(1);
+plot(DT_x,DT_y,'b.--','MarkerSize',18,'LineWidth',2.5);
 hold on;
-plot(location_noise(:,1),location_noise(:,2),'r*');
-plot(location(:,1),location(:,2),'g');
+plot(location_noise(:,1),location_noise(:,2),'g*','MarkerSize',12);
+plot(location(:,1),location(:,2),'rd-','LineWidth',2.5);
 % for i=1:nt
 %    rectangle('Position',[recOmg{i}.point(1) (recOmg{i}.point(2)-recOmg{i}.height)...
 %        recOmg{i}.width recOmg{i}.height]); 
 % end
-% for i=1:nt
-%     plot(option.grids(omegaSetSet{i},1),option.grids(omegaSetSet{i},2),'r*');
-% end
-hold off;
-s=input('output field animated: y or n?');
-if (s=='y')
-    writeObj=VideoWriter('test2.avi');
-    writeObj.FrameRate=5;
-    open(writeObj);
-    nFrames = nt;
-    mov(1:nFrames) = struct('cdata',[], 'colormap',[]);
-    for i=1:nt
-    C=reshape(posterior(i).muz,41,61);
-    surf(C);
-    mov(i)=getframe(gcf);
-    writeVideo(writeObj,mov(i));
-    end
-    close(writeObj);
+
+for i=1:nt
+    plot(option.grids(omegaSetSet{i},1),option.grids(omegaSetSet{i},2),'g*');
 end
+hold off;
+% s=input('output field animated: y or n?');
+% if (s=='y')
+%     writeObj=VideoWriter('test2.avi');
+%     writeObj.FrameRate=5;
+%     open(writeObj);
+%     nFrames = nt;
+%     mov(1:nFrames) = struct('cdata',[], 'colormap',[]);
+%     for i=1:nt
+%     C=reshape(posterior(i).muz,ny,nx);
+%     surf(C);
+%     mov(i)=getframe(gcf);
+%     writeVideo(writeObj,mov(i));
+%     end
+%     close(writeObj);
+% end
+figure(2);
+%normalize the filtered features
+f_polished=downSampling(T(1:restricted),scaleRatio);
+f_polished = f_polished - ones(size(f_polished,1),1)*mean(f_polished,1);            % remove mean average
+cov_f = cov(f_polished);
+[U,S,~] =  svd(cov_f);                                               % make feature orthogonal using SVD 
+f_polished = f_polished*U*sqrt(S^-1);  
+
+set(gcf,'DefaultAxesColorOrder',[0 0 1;1 0 0;0 1 0]);
+hold all
+D=reshape(posterior(end).muz,ny,nx);
+plot3(truePosGrid(:,1),truePosGrid(:,2),f,'LineWidth',3.0,...
+    'LineStyle','--');
+plot3(truePosGrid(:,1),truePosGrid(:,2),f_polished,'LineWidth',3.0);
+surf(option.X_mesh',option.Y_mesh',D,...
+    'FaceColor','interp','EdgeColor','none','FaceLighting','phong');
+axis tight
+camlight right
+material shiny
 

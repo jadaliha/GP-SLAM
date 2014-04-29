@@ -1,5 +1,7 @@
 function [p fval] = HyperParameter(f,x,p0)
-
+upBound=0.2;
+A=-eye(4);
+b=-upBound*ones(4,1);
 if (nargin < 3)
     global system
     theta0 = [var(f) 1 1 system.sigma2w]'; % sig_f^2, sig_x sig_y
@@ -11,8 +13,10 @@ optimset('algorithm','trust-region-reflective','gradobj','on');
 exitflag = 0;
 counter = 0;
 while ~exitflag
-    [p,fval,exitflag] = fminsearch(@(theta) -likelihood(x,f,theta),... %changed "comp_L"-->"likelihood" in 4/24/2013
-        theta0);
+%     [p,fval,exitflag] = fminsearch(@(theta) -likelihood(x,f,theta),... %changed "comp_L"-->"likelihood" in 4/24/2013
+%         theta0);
+    [p,fval,exitflag] = fmincon(@(theta) -likelihood(x,f,theta),... %changed "comp_L"-->"likelihood" in 4/24/2013
+        theta0,A,b);
     counter = counter + 1;
     exitflag = exitflag || (counter==3);
 end

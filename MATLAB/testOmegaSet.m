@@ -10,8 +10,8 @@ sizeY=size(Y_mesh,2);
 [tmp_S1, tmp_S2] = meshgrid(X_mesh,Y_mesh);
 grids = [reshape(tmp_S1,[],1) reshape(tmp_S2,[],1)];
 
-point1=[-5 5];
-point2=[0 0];
+point1=[-10 5];
+point2=[-10 0];
 dist1=sqrt((grids(:,1) - point1(1)).^2 + ...
         (grids(:,2) - point1(2)).^2);
 dist2=sqrt((grids(:,1) - point2(1)).^2 + ...
@@ -19,13 +19,13 @@ dist2=sqrt((grids(:,1) - point2(1)).^2 + ...
 [IC_1,IX_1] = sort(dist1);
 [IC_2,IX_2] = sort(dist2);
 
-[Omg,rec]=omegaMaker(grids,IX_1,IX_2,sizeX,sizeY);
+[Omg,rec]=omegaMaker2(grids,IX_1,IX_2,5);
 OmgPlot=grids(Omg,:);
 hold on;
 plot(tmp_S1,tmp_S2,'bo');
 plot(OmgPlot(:,1),OmgPlot(:,2),'r*');
 plot([point1(1) point2(1)],[point1(2) point2(2)],'y*');
-plot(grids(gridIX(box.point(2),box.point(1)),1),...
-    grids(gridIX(box.point(2),box.point(1)),2),'b*');
-rectangle('Position',[rec.point(1) (rec.point(2)-rec.height) rec.width rec.height]);
+% plot(grids(gridIX(box.point(2),box.point(1)),1),...
+%     grids(gridIX(box.point(2),box.point(1)),2),'b*');
+%rectangle('Position',[rec.point(1) (rec.point(2)-rec.height) rec.width rec.height]);
 hold off;
